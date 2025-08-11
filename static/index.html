@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .add-task {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 2rem;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .add-task input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .add-task button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .add-task button:hover {
+            background: #0056b3;
+        }
+        
+        .task {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .task.completed {
+            opacity: 0.7;
+        }
+        
+        .task.completed h3 {
+            text-decoration: line-through;
+        }
+        
+        .task-content {
+            flex: 1;
+        }
+        
+        .task-content h3 {
+            margin: 0 0 5px 0;
+        }
+        
+        .task-content p {
+            margin: 0 0 10px 0;
+            color: #666;
+        }
+        
+        .task-content small {
+            color: #999;
+        }
+        
+        .task-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .task-actions button {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .task-actions button:first-child {
+            background: #28a745;
+            color: white;
+        }
+        
+        .task-actions button.delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .loading, .error {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Task Manager</h1>
+        </header>
+        
+        <main>
+            <div class="add-task">
+                <input id="taskTitle" placeholder="Task title">
+                <input id="taskDescription" placeholder="Task description">
+                <button onclick="addTask()">Add Task</button>
+            </div>
+
+            <div id="tasks"></div>
+            <div id="loading" class="loading" style="display: none;">Loading...</div>
+            <div id="error" class="error" style="display: none;"></div>
+        </main>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        
+        let tasks = [];
+        
+        // DOM elements
+        const tasksContainer = document.getElementById('tasks');
+        const loadingEl = document.getElementById('loading');
+        const errorEl = document.getElementById('error');
+        const taskTitleInput = document.getElementById('taskTitle');
+        const taskDescriptionInput = document.getElementById('taskDescription');
+        
+        // Fetch tasks from API
+        async function fetchTasks() {
+            showLoading(true);
+            hideError();
+            try {
+                const response = await fetch(`${API_BASE}/tasks`);
+                tasks = await response.json();
+                renderTasks();
+            } catch (error) {
+                showError('Failed to fetch tasks');
+                console.error('Error fetching tasks:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Add new task
+        async function addTask() {
+            const title = taskTitleInput.value.trim();
+            const description = taskDescriptionInput.value.trim();
+            
+            if (!title) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/tasks`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title, description })
+                });
+                
+                const newTask = await response.json();
+                tasks.push(newTask);
+                taskTitleInput.value = '';
+                taskDescriptionInput.value = '';
+                renderTasks();
+            } catch (error) {
+                showError('Failed to add task');
+                console.error('Error adding task:', error);
+            }
+        }
+        
+        // Toggle task completion
+        async function toggleTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ...task,
+                        completed: !task.completed
+                    })
+                });
+                
+                const updatedTask = await response.json();
+                const index = tasks.findIndex(t => t.id === taskId);
+                tasks[index] = updatedTask;
+                renderTasks();
+            } catch (error) {
+                showError('Failed to update task');
+                console.error('Error updating task:', error);
+            }
+        }
+        
+        // Delete task
+        async function deleteTask(taskId) {
+            if (!confirm('Are you sure you want to delete this task?')) return;
+            
+            try {
+                await fetch(`${API_BASE}/tasks/${taskId}`, {
+                    method: 'DELETE'
+                });
+                
+                tasks = tasks.filter(t => t.id !== taskId);
+                renderTasks();
+            } catch (error) {
+                showError('Failed to delete task');
+                console.error('Error deleting task:', error);
+            }
+        }
+        
+        // Render tasks
+        function renderTasks() {
+            tasksContainer.innerHTML = tasks.map(task => `
+                <div class="task ${task.completed ? 'completed' : ''}">
+                    <div class="task-content">
+                        <h3>${task.title}</h3>
+                        ${task.description ? `<p>${task.description}</p>` : ''}
+                        <small>Created: ${formatDate(task.created_at)}</small>
+                    </div>
+                    <div class="task-actions">
+                        <button onclick="toggleTask(${task.id})">
+                            ${task.completed ? 'Undo' : 'Complete'}
+                        </button>
+                        <button onclick="deleteTask(${task.id})" class="delete">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Utility functions
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        }
+        
+        function showLoading(show) {
+            loadingEl.style.display = show ? 'block' : 'none';
+        }
+        
+        function showError(message) {
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+        
+        function hideError() {
+            errorEl.style.display = 'none';
+        }
+        
+        // Add keyboard support
+        taskTitleInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') addTask();
+        });
+        
+        taskDescriptionInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') addTask();
+        });
+        
+        // Initialize app
+        fetchTasks();
+    </script>
+</body>
+</html>
