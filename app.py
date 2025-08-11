@@ -89,8 +89,7 @@ def serve_static(path):
         return send_from_directory(app.static_folder, 'index.html')
 
 # Initialize database
-@app.before_first_request
-def create_tables():
+with app.app_context():
     db.create_all()
 
 if __name__ == '__main__':
