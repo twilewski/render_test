@@ -9,7 +9,7 @@ services:
     name: taskmanager-app
     env: python
     region: oregon
-    buildCommand: "pip install -r requirements.txt && cd frontend && npm install && npm run build"
+    buildCommand: "./build.sh"
     startCommand: "gunicorn --bind 0.0.0.0:$PORT app:app"
     plan: starter
     envVars:

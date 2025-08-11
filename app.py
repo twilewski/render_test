@@ -77,7 +77,17 @@ def delete_task(task_id):
 # Serve frontend
 @app.route('/')
 def serve_frontend():
-    return send_from_directory(app.static_folder, 'index.html')
+    try:
+        return send_from_directory(app.static_folder, 'index.html')
+    except:
+        return '''
+        <h1>Task Manager API</h1>
+        <p>Frontend not built yet. Try these API endpoints:</p>
+        <ul>
+            <li><a href="/api/health">/api/health</a></li>
+            <li><a href="/api/tasks">/api/tasks</a></li>
+        </ul>
+        ''', 200
 
 @app.route('/<path:path>')
 def serve_static(path):
@@ -86,7 +96,7 @@ def serve_static(path):
     try:
         return send_from_directory(app.static_folder, path)
     except:
-        return send_from_directory(app.static_folder, 'index.html')
+        return serve_frontend()
 
 # Initialize database
 with app.app_context():
